@@ -1,7 +1,8 @@
 #pragma	once
 
 #include	<iostream>
-#include	<stdio.h>
+#include	<cstdlib>
+#include	<string>
 
 #define CLR_TERM "\e[1;1H\e[2J"
 
@@ -13,7 +14,12 @@
 
 #include <WebSocketServer.h>
 
+/*######## JsonResponse ########*/
+
+//#include <JsonResponse.h>
+
 /*######## utils ########*/
 
 void	show_menu( void );
 void	clear_terminal( void );
+std::string get_env(const char*);
