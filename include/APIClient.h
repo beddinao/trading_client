@@ -35,5 +35,8 @@ class	APIClient {
 		void modify_order( void );
 		void get_order_book( void );
 		void get_position( void );
+
+		/* helper functions */
+		void snap_time();
 };
 

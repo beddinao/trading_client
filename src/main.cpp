@@ -4,17 +4,13 @@ bool	initiate_trader(APIClient &api_client) {
 	std::string client_id;
 	std::string client_secret;
 	std::map<std::string, std::string> endpoints;
-
-	std::cout << "\nInitial Setup: " << std::endl;
-	/* client cridentials */
+	/* client cridentials setup */
 	if (!get_client_info(client_id, client_secret))
 		return false;
 	api_client.setup_client(client_id, client_secret);
-
 	/* endpoints setup */
 	get_endpoints_info(endpoints);
 	api_client.setup_endpoints(endpoints);
-
 	return true;
 }
 
@@ -25,12 +21,21 @@ int	main() {
 	int		choice;
 
 
+	/* retrieving info required for data transfer */
 	if (!initiate_trader(api_client)) {
 		std::cout << "initiation failed" << std::endl;
 		return 1;
 	}
 
-	//clear_terminal();
+	/* using those data to identify user */
+	if (!api_client.authenticate()) {
+		std::cout << "authentication failed" << std::endl;
+		return 1;
+	}
+
+	/* getting current time from last auth */
+	api_client.snap_time();
+
 	while (true) {
 		show_menu();
 		std::cout << "your choice > ";
