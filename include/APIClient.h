@@ -4,23 +4,32 @@
 #include	<sys/time.h>
 #include	<JsonResponse.h>
 #include	<string>
+#include	<map>
 
 class	APIClient {
+	/* client info */
+	std::string	client_id;
+	std::string	client_secret;
+	/* access token */
 	std::string	access_token;
 	unsigned		access_token_expire;
-	//struct timeval	last_auth;
+	struct timeval	last_auth;
+	/* flexible endpoints */
+	std::map<std::string, std::string>	endpoints;
 
 	public:
 		APIClient();
-		~APIClient();
 		APIClient( const APIClient& );
 		APIClient &operator = ( const APIClient& );
+		~APIClient();
 
-		std::string const& get_token( void ) const;
-		void set_token( std::string const& );
+		/* authentication */
+		bool authenticate( );
+		bool refresh_token( );
+		void setup_client( std::string&, std::string& );
+		void setup_endpoints( std::map<std::string, std::string>& );
 
-		bool authenticate( std::string&, std::string& );
-
+		/* trade functions */
 		void place_order( void );
 		void cancel_order( void );
 		void modify_order( void );
