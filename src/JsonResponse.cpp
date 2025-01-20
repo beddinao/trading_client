@@ -4,9 +4,12 @@
 void	trim_str(std::string &input, std::string s) {
 	size_t buff_pos;
 
+	/* for each char delimiter in s */
 	for (std::string::iterator c = s.begin(); c != s.end(); ++c) {
+		/* trimming from start */
 		while ((buff_pos = input.find_first_of( *c )) == 0 && buff_pos != input.npos)
 			input.erase(input.begin() + buff_pos);
+		/* trimiing from the end */
 		while ((buff_pos = input.find_last_of( *c )) == input.size()-1 && buff_pos != input.npos)
 			input.erase(input.begin() + buff_pos);
 	}
@@ -38,46 +41,56 @@ bool	polish_string(std::string &buffer, std::string &name, std::string &val) {
 }
 
 /*
-   basic JSON object formation in the constructor
-   .instead of implementing a tree based json parsing
+   basic JSON string parsing
+   .instead of implementing a complete tree based json parsing
    this function just splits the string by the highest level ','
-   and seperate individual fields by '|' (second level) and '-' (third)
-   .there is another utility to split by those delimeters
+   and only branch to lower levels for specific fields 
    */
-JsonResponse::JsonResponse( std::string &input ) {
+void	JsonResponse::init( std::string &input ) {
 	std::string name, val;
-	size_t input_pos, brk(0);
+	size_t input_pos;
 
 	trim_str(input, " \"[]{}");
-	std::cout << "\nmodified response: " << input << std::endl;
-	for (; (input_pos = input.find(",")) != input.npos;) {
+	for (; (input_pos = input.find( "," )) != input.npos;) {
 		std::string buffer(input.substr(0, input_pos));
-
-		if (buffer.find('{') != buffer.npos)
-			brk++;
-
 		input = input.substr(input_pos + 1);
+
+		/* json test */
 		if (!polish_string(buffer, name, val))
 			continue;
 
-		if (brk) {
-			brk--;
-			input_pos = input.find('}');
-			if (input_pos == input.npos)
-				continue;
-			val += "," + input.substr(0, input_pos);
-			/* small branching */
-			JsonResponse childJson(val);
-			for (std::map<std::string, std::string>::iterator it = childJson.fields.begin();
-					it != childJson.fields.end(); ++it)
-				this->fields[it->first] = it->second;
-			input = input.substr(input_pos + 1);
+		/* merging back the string if it has opened brackets */
+		if (val.find("{") != val.npos) {
+			size_t brk(1), i(0);
+			for (; i < input.size(); i++) {
+				if (input[i] == '{')
+					brk++;
+				else if (input[i] == '}')
+					brk--;
+				if (!brk) break;
+			}
+			if (i < input.size()) {
+				val += "," + input.substr(0, i);
+				input = input.substr(i+1);
+				trim_str(val, "[{ }]");
+			}
 		}
+		
+		/* final quotes removal */
+		trim_str(name, "\"");
+		trim_str(val, "\"");
 
+		/* adding the result to the map */
 		this->fields[name] = val;
+
+		/* branching on specific name fields */
+		if (name == "result" || name == "error"
+			|| name == "trades" || name == "order")
+			this->init(val);
 	}
 }
 
+JsonResponse::JsonResponse() { };
 JsonResponse::~JsonResponse() { };
 
 JsonResponse::JsonResponse( const JsonResponse &J ) {

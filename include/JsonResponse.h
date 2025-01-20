@@ -6,9 +6,10 @@
 
 class	JsonResponse {
 	public:
-		JsonResponse( std::string& );
+		JsonResponse();
 		~JsonResponse();
 		JsonResponse( const JsonResponse& );
 		JsonResponse &operator = ( const JsonResponse& );
 		std::map<std::string, std::string> fields;
+		void init( std::string& );
 };

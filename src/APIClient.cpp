@@ -64,15 +64,21 @@ bool	APIClient::authenticate( ) {
 		if (res != CURLE_OK || response.empty())
 			return false;
 
-		std::cout << "raw response: " << response << std::endl;
-		/* converting json string response to actual json */
-		JsonResponse json_response(response);
+		JsonResponse json_response;
+		try {
+			/* converting json string response to an actual json */
+			json_response.init(response);
+		}
+		catch (std::exception &e) {
+			std::cout << "response parser failed" << std::endl;
+			return false;
+		}
 
-		std::cout << std::endl;
+		/*std::cout << std::endl;
 		std::map<std::string, std::string>::iterator it = json_response.fields.begin();
 		for (; it != json_response.fields.end(); ++it)
 			std::cout << "[" << it->first << "]-->[" << it->second << "]" << std::endl;
-		std::cout << std::endl;
+		std::cout << std::endl;*/
 
 		/* response error test */
 		if (json_response.fields.find("error") != json_response.fields.end()) {
@@ -118,18 +124,30 @@ bool	APIClient::refresh_token( ) {
 	return true;	
 }
 
-void	APIClient::place_order( void ) {
-	printf("placing an order\n");
+void	APIClient::place_order( ) {
+	if (!this->refresh_token()) {
+		std::cout << "placing order failed due to an expired access token" << std::end;
+		return;
+	}
 }
-void	APIClient::cancel_order( void ) {
-	printf("canceling an order\n");
+void	APIClient::cancel_order( ) {
+	if (!this->refresh_token()) {
+		std::cout << "canceling order failed due to an expired access token" << std::end;
+		return;
+	}
 }
 void	APIClient::modify_order( void ) {
-	printf("modifying an order\n");
+	if (!this->refresh_token()) {
+		std::cout << "modifying order failed due to an expired access token" << std::end;
+		return;
+	}
 }
 
 void	APIClient::get_order_book( void ) {
-	printf("getting order book\n");
+	if (!this->refresh_token()) {
+		std::cout << "retriving order failed due to an expired access token" << std::end;
+		return;
+	}
 }
 
 void	APIClient::get_position( void ) {
