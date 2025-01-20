@@ -53,6 +53,7 @@ class	APIClient {
 		void get_position(  );
 
 		/* helper functions */
+		bool send_request(bool, const char*, JsonResponse* );
 		void snap_time();
 };
 

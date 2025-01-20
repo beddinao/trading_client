@@ -54,7 +54,7 @@ int	main() {
 			choice = std::stoi(cin_input);
 			switch (choice) {
 				case 1:
-					api_client.place_order(action, instrument, type, 1, 1.1);
+					api_client.place_order(action, instrument, type, 1, 1000);
 					continue;
 				case 2:
 					api_client.cancel_order(order_id);
