@@ -48,6 +48,8 @@ bool	APIClient::authenticate( ) {
 		/* request url with query string */
 		std::string url = this->endpoints["url"] + "/api/v2" + this->endpoints["auth"] + "?client_id="
 			+ this->client_id + "&client_secret=" + this->client_secret + "&grant_type=client_credentials";
+
+		std::cout << std::endl << "requestURL: " << BLU << url << RST << std::endl;
 		
 		/* http headers */
 		headers = curl_slist_append(headers, "Content-Type: application/json");
@@ -74,11 +76,11 @@ bool	APIClient::authenticate( ) {
 			return false;
 		}
 
-		/*std::cout << std::endl;
+		std::cout << std::endl;
 		std::map<std::string, std::string>::iterator it = json_response.fields.begin();
 		for (; it != json_response.fields.end(); ++it)
-			std::cout << "[" << it->first << "]-->[" << it->second << "]" << std::endl;
-		std::cout << std::endl;*/
+			std::cout << "[" << WHT << it->first << RST << "]-->[" << it->second << "]" << std::endl;
+		std::cout << std::endl;
 
 		/* response error test */
 		if (json_response.fields.find("error") != json_response.fields.end()) {
@@ -94,7 +96,7 @@ bool	APIClient::authenticate( ) {
 		}
 
 		/* access token just landed */
-		this->access_token = json_response.fields["token_type"] + " " + json_response.fields["access_token"];
+		this->access_token = json_response.fields["access_token"];
 		this->access_token_expire = std::atoi(json_response.fields["expires_in"].c_str());
 		return true;
 	}
@@ -124,29 +126,101 @@ bool	APIClient::refresh_token( ) {
 	return true;	
 }
 
-void	APIClient::place_order( ) {
+void	APIClient::place_order(std::string &instrument, std::string &type, int amount, double price) {
+	/* updating access_token if expired */
 	if (!this->refresh_token()) {
-		std::cout << "placing order failed due to an expired access token" << std::end;
+		std::cout << "placing order failed due to an expired access token" << std::endl;
 		return;
 	}
+	/* performing the transfer */
+	CURL *curl = curl_easy_init();
+	if (curl) {
+		struct curl_slist *headers = nullptr;
+		std::string response;
+		std::string url = this->endpoints["url"] + "/api/v2" + this->endpoints[type] + "?"
+			+ "amount=" + std::to_string(amount) + "&instrument_name=" + instrument
+			+ "&price=" + std::to_string(price) + "&type=market";
+
+		std::cout << std::endl << "requestURL: " << BLU << url << RST << std::endl;
+
+		headers = curl_slist_append(headers, "Content-Type: application/json");
+		headers = curl_slist_append(headers, ("Authorization: Bearer " + this->access_token).c_str());
+
+		curl_easy_setopt(curl, CURLOPT_URL, url.c_str());
+		curl_easy_setopt(curl, CURLOPT_HTTPHEADER, headers);
+		curl_easy_setopt(curl, CURLOPT_WRITEFUNCTION, write_call_back);
+		curl_easy_setopt(curl, CURLOPT_WRITEDATA, &response);
+
+		CURLcode res = curl_easy_perform(curl);
+		curl_easy_cleanup(curl);
+
+		if (res != CURLE_OK || response.empty()) {
+			std::cout << "placing order failed due to connection(curl) failure" << std::endl;
+			return;
+		}
+
+		JsonResponse json_response;
+		try {
+			json_response.init(response);
+		}
+		catch (std::exception &e) {
+			std::cout << "response parsing failure" << std::endl;
+			return;
+		}
+
+		std::cout << std::endl;
+		std::map<std::string, std::string>::iterator it = json_response.fields.begin();
+		for (; it != json_response.fields.end(); ++it)
+			std::cout << "[" << WHT << it->first << RST << "]-->[" << it->second << "]" << std::endl;
+		std::cout << std::endl;
+
+
+		if (json_response.fields.find("error") != json_response.fields.end()) {
+			std::cout << "buy endpoint responded with error: " << RED << json_response.fields["error"] << RST << std::endl;
+			return;
+		}
+		if (json_response.fields.find("order") == json_response.fields.end()
+			|| json_response.fields.find("order_id") == json_response.fields.end()
+			|| json_response.fields["order_id"].empty()) {
+			std::cout << "buy endpoint resopnse doesn't have the order fields" << std::endl;
+			return;
+		}
+		std::cout << GRN << "Order done successfully" << RST << std::endl;
+		this->orders[ json_response.fields["order_id"] ] = json_response.fields;
+	}
+	/* curl failed */
+	else std::cout << "placing order failed due to connection(curl) failure" << std::endl;
 }
+
 void	APIClient::cancel_order( ) {
 	if (!this->refresh_token()) {
-		std::cout << "canceling order failed due to an expired access token" << std::end;
+		std::cout << "canceling order failed due to an expired access token" << std::endl;
 		return;
 	}
 }
 void	APIClient::modify_order( void ) {
 	if (!this->refresh_token()) {
-		std::cout << "modifying order failed due to an expired access token" << std::end;
+		std::cout << "modifying order failed due to an expired access token" << std::endl;
 		return;
 	}
 }
 
-void	APIClient::get_order_book( void ) {
-	if (!this->refresh_token()) {
-		std::cout << "retriving order failed due to an expired access token" << std::end;
+void	APIClient::get_order_book( ) {
+	if (this->orders.empty()) {
+		std::cout << "there is no pending orders" << std::endl;
 		return;
+	}
+	std::cout << "Active Orders: " << std::endl;
+	std::cout << "order_id | order_data" << std::endl;
+	std::map<std::string, std::map<std::string, std::string> >::iterator it = this->orders.begin();
+	for (; it != this->orders.end(); ++it) {
+		std::cout << CYN"------------------------------------------------------"RST << std::endl;
+		std::cout << GRN << it->first << ": "RST << std::endl;
+		for (std::map<std::string, std::string>::iterator it_2 = it->second.begin(); it_2 != it->second.end(); ++it_2) {
+			std::cout << BLU"------------------------------"RST << std::endl;
+			std::cout << WHT << it_2->first << ": "RST << it_2->second << std::endl;
+		}
+		std::cout << CYN"------------------------------------------------------"RST << std::endl;
 	}
 }
 

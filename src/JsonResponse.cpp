@@ -60,6 +60,21 @@ void	JsonResponse::init( std::string &input ) {
 			continue;
 
 		/* merging back the string if it has opened brackets */
+		if (val.find("[") != val.npos) {
+			size_t brk(1), i(0);
+			for (; i < input.size(); i++) {
+				if (input[i] == '[')
+					brk++;
+				else if (input[i] == ']')
+					brk--;
+				if (!brk) break;
+			}
+			if (i < input.size()) {
+				val += "," + input.substr(0, i);
+				input = input.substr(i+1);
+				trim_str(val, "[{ }]");
+			}
+		}
 		if (val.find("{") != val.npos) {
 			size_t brk(1), i(0);
 			for (; i < input.size(); i++) {
@@ -75,7 +90,7 @@ void	JsonResponse::init( std::string &input ) {
 				trim_str(val, "[{ }]");
 			}
 		}
-		
+
 		/* final quotes removal */
 		trim_str(name, "\"");
 		trim_str(val, "\"");

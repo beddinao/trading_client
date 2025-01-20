@@ -42,13 +42,16 @@ int	main() {
 		std::getline(std::cin, cin_input);
 
 		if (!std::cin) break;
-		clear_terminal();
+		//clear_terminal();
+		
+		std::string instrument = "ETH-PERPETUAL";
+		std::string type = "sell";
 
 		try {
 			choice = std::stoi(cin_input);
 			switch (choice) {
 				case 1:
-					api_client.place_order();
+					api_client.place_order(instrument, type, 1, 1.1);
 					continue;
 				case 2:
 					api_client.cancel_order();
