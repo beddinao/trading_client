@@ -39,7 +39,7 @@ static	size_t write_call_back(void *content, size_t size, size_t nmemb, std::str
 
 bool	APIClient::send_request(bool private_endpoint, const char *url, JsonResponse *json_response) {
 	/* updating access_token if expired */
-	if (!private_endpoint && !this->refresh_token()) {
+	if (private_endpoint && !this->refresh_token()) {
 		std::cout << "refreshing access_token after expiration failed" << std::endl;
 		return false;
 	}
@@ -137,7 +137,6 @@ bool	APIClient::refresh_token( ) {
 }
 
 void	APIClient::place_order(std::string &action, std::string &instrument, std::string &type, int amount, double price) {
-	(void)type;
 	JsonResponse json_response;
 	bool status = this->send_request(true,
 			(this->endpoints["url"] + "/api/v2" + this->endpoints[action] + "?"
@@ -157,16 +156,9 @@ void	APIClient::place_order(std::string &action, std::string &instrument, std::s
 	}
 
 	std::cout << GRN << "Order done successfully" << RST << std::endl;
-	this->orders[ json_response.fields["order_id"] ] = json_response.fields;
 }
 
 void	APIClient::cancel_order( std::string &order_id ) {
-	/* checking if order is present */
-	if (this->orders.find(order_id) == this->orders.end()) {
-		std::cout << "Order is not in OrderBook" << std::endl;
-		return;
-	}
-
 	JsonResponse json_response;
 	bool status = this->send_request(true,
 			(this->endpoints["url"] + "/api/v2" + this->endpoints["cancel"] + "?"
@@ -182,16 +174,9 @@ void	APIClient::cancel_order( std::string &order_id ) {
 		return;
 	}
 
-	this->orders.erase(order_id);
 	std::cout << GRN << "Order canceled successfully" << RST << std::endl;
 }
 void	APIClient::modify_order(std::string &order_id, int amount, double price) {
-	/* checking if order is present */
-	if (this->orders.find(order_id) == this->orders.end()) {
-		std::cout << "Order is not in OrderBook" << std::endl;
-		return;
-	}
-
 	JsonResponse json_response;
 	bool status = this->send_request(true,
 			(this->endpoints["url"] + "/api/v2" + this->endpoints["edit"] + "?"
@@ -208,31 +193,47 @@ void	APIClient::modify_order(std::string &order_id, int amount, double price) {
 		std::cout << "cancel endpoint response doesn't have enough fields" << std::endl;
 		return;
 	}
-	this->orders.erase(order_id);
-	this->orders[order_id] = json_response.fields;
 	std::cout << GRN << "Order edited successfully" << RST << std::endl;
 }
 
-void	APIClient::get_order_book( ) {
-	if (this->orders.empty()) {
-		std::cout << "there is no pending orders" << std::endl;
+void	APIClient::get_order_book(std::string &instrument) {
+	JsonResponse json_response;
+	bool status = this->send_request(false,
+			(this->endpoints["url"] + "/api/v2" + this->endpoints["order_book"] + "?"
+			 "instrument_name=" + instrument).c_str(),
+			&json_response);
+	if (!status) {
+		std::cout << "getting order book failed" << std::endl;
 		return;
 	}
-	std::cout << "Active Orders: " << std::endl;
-	std::cout << "order_id | order_data" << std::endl;
-	std::map<std::string, std::map<std::string, std::string> >::iterator it = this->orders.begin();
-	for (; it != this->orders.end(); ++it) {
-		std::cout << CYN"------------------------------------------------------"RST << std::endl;
-		std::cout << GRN << it->first << ": "RST << std::endl;
-		for (std::map<std::string, std::string>::iterator it_2 = it->second.begin(); it_2 != it->second.end(); ++it_2) {
-			std::cout << BLU"------------------------------"RST << std::endl;
-			std::cout << WHT << it_2->first << ": "RST << it_2->second << std::endl;
-		}
-		std::cout << CYN"------------------------------------------------------"RST << std::endl;
+
+	if (json_response.fields.find("result") == json_response.fields.end()
+		|| json_response.fields["result"].empty()) {
+		std::cout << this->endpoints["order_book"]
+			<< " endpoint response doesn't have enough fields" << std::endl;
+		return;
 	}
+	std::cout << GRN"order book retrived successfully"RST << std::endl;
 }
 
-void	APIClient::get_position( void ) {
-	printf("getting position\n");
+void	APIClient::get_position(std::string &currency, std::string &kind) {
+	JsonResponse json_response;
+	bool status = this->send_request(true,
+			(this->endpoints["url"] + "/api/v2" + this->endpoints["position"] + "?"
+			 + "currency=" + currency + "&kind=" + kind).c_str(),
+			&json_response);
+
+	if (!status) {
+		std::cout << "getting position failed" << std::endl;
+		return;
+	}
+	
+	if (json_response.fields.find("result") == json_response.fields.end()
+		|| json_response.fields.find("size") == json_response.fields.end()
+		|| json_response.fields["size"].empty()) {
+		std::cout << "position endpoint reponse doesn't have enough fields" << std::endl;
+		return;
+	}
+	std::cout << GRN << "position retrieved successfully" << RST << std::endl;
 }
 

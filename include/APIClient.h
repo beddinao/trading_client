@@ -27,11 +27,6 @@ class	APIClient {
 	struct timeval	last_auth;
 	/* flexible endpoints */
 	std::map<std::string, std::string>	endpoints;
-	/*
-		orders book
-		: order_id -> order_json
-	*/
-	std::map<std::string, std::map<std::string, std::string> > orders;
 
 	public:
 		APIClient();
@@ -49,8 +44,8 @@ class	APIClient {
 		void place_order( std::string&, std::string&, std::string&, int, double );
 		void modify_order( std::string&, int, double );
 		void cancel_order( std::string& );
-		void get_order_book(  );
-		void get_position(  );
+		void get_position( std::string&, std::string& );
+		void get_order_book( std::string& );
 
 		/* helper functions */
 		bool send_request(bool, const char*, JsonResponse* );
