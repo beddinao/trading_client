@@ -50,19 +50,19 @@ void	get_endpoints_info(std::map<std::string, std::string> &endpoints) {
 		std::cout << "custom ENDPOINT_SELL is not set, using: "
 			<< endpoints["sell"] << std::endl;
 	}
-	/* endpoint used for getting books */
-	endpoints["book"] = get_env("ENDPOINT_BOOK");
-	if (endpoints["book"].empty()) {
-		endpoints["book"] = "/private/book";
-		std::cout << "custom ENDPOINT_BOOK is not set, using: "
-			<< endpoints["book"] << std::endl;
+	/* endpoint used for editing books: private */
+	endpoints["edit"] = get_env("ENDPOINT_EDIT");
+	if (endpoints["edit"].empty()) {
+		endpoints["edit"] = "/private/edit";
+		std::cout << "custom ENDPOINT_EDIT is not set, using: "
+			<< endpoints["edit"] << std::endl;
 	}
 	/* endpoint used of getting position */
-	endpoints["position"] = get_env("ENDPOINT_POSITION");
-	if (endpoints["position"].empty()) {
-		endpoints["position"] = "/private/position";
-		std::cout << "custom ENDPOINT_POSITION is not set, using: "
-			<< endpoints["position"] << std::endl;
+	endpoints["cancel"] = get_env("ENDPOINT_CANCEL");
+	if (endpoints["cancel"].empty()) {
+		endpoints["cancel"] = "/private/cancel";
+		std::cout << "custom ENDPOINT_CANCEL is not set, using: "
+			<< endpoints["cancel"] << std::endl;
 	}
 	std::cout << std::endl;
 }

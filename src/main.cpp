@@ -45,19 +45,22 @@ int	main() {
 		//clear_terminal();
 		
 		std::string instrument = "ETH-PERPETUAL";
-		std::string type = "sell";
+		std::string action = "buy";
+		std::string type = "limit";
+
+		std::string order_id = "dkaodka";
 
 		try {
 			choice = std::stoi(cin_input);
 			switch (choice) {
 				case 1:
-					api_client.place_order(instrument, type, 1, 1.1);
+					api_client.place_order(action, instrument, type, 1, 1.1);
 					continue;
 				case 2:
-					api_client.cancel_order();
+					api_client.cancel_order(order_id);
 					continue;
 				case 3:
-					api_client.modify_order();
+					api_client.modify_order(order_id, 1, 1.2);
 					continue;
 				case 4:
 					api_client.get_order_book();

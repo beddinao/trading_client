@@ -126,7 +126,7 @@ bool	APIClient::refresh_token( ) {
 	return true;	
 }
 
-void	APIClient::place_order(std::string &instrument, std::string &type, int amount, double price) {
+void	APIClient::place_order(std::string &action, std::string &instrument, std::string &type, int amount, double price) {
 	/* updating access_token if expired */
 	if (!this->refresh_token()) {
 		std::cout << "placing order failed due to an expired access token" << std::endl;
@@ -137,9 +137,9 @@ void	APIClient::place_order(std::string &instrument, std::string &type, int amou
 	if (curl) {
 		struct curl_slist *headers = nullptr;
 		std::string response;
-		std::string url = this->endpoints["url"] + "/api/v2" + this->endpoints[type] + "?"
+		std::string url = this->endpoints["url"] + "/api/v2" + this->endpoints[action] + "?"
 			+ "amount=" + std::to_string(amount) + "&instrument_name=" + instrument
-			+ "&price=" + std::to_string(price) + "&type=market";
+			+ "&price=" + std::to_string(price) + "&type=" + type;
 
 		std::cout << std::endl << "requestURL: " << BLU << url << RST << std::endl;
 
@@ -192,16 +192,134 @@ void	APIClient::place_order(std::string &instrument, std::string &type, int amou
 	else std::cout << "placing order failed due to connection(curl) failure" << std::endl;
 }
 
-void	APIClient::cancel_order( ) {
+void	APIClient::cancel_order( std::string &order_id ) {
+	/* checking if order is present */
+	if (this->orders.find(order_id) == this->orders.end()) {
+		std::cout << "Order is not in OrderBook" << std::endl;
+		return;
+	}
+	/* updating access_token if expired */
 	if (!this->refresh_token()) {
 		std::cout << "canceling order failed due to an expired access token" << std::endl;
 		return;
 	}
+	CURL *curl = curl_easy_init();
+	if (curl) {
+		struct curl_slist *headers = nullptr;
+		std::string response;
+		std::string url = this->endpoints["url"] + "/api/v2" + this->endpoints["cancel"] + "?"
+			+ "order_id" + order_id;
+		std::cout << std::endl << "requestURL: " << BLU << url << RST << std::endl;
+
+		headers = curl_slist_append(headers, "Content-Type: application/json");
+		headers = curl_slist_append(headers, ("Authorization: Bearer " + this->access_token).c_str());
+
+		curl_easy_setopt(curl, CURLOPT_URL, url.c_str());
+		curl_easy_setopt(curl, CURLOPT_HTTPHEADER, headers);
+		curl_easy_setopt(curl, CURLOPT_WRITEFUNCTION, write_call_back);
+		curl_easy_setopt(curl, CURLOPT_WRITEDATA, &response);
+
+		CURLcode res = curl_easy_perform(curl);
+		curl_easy_cleanup(curl);
+
+		if (res != CURLE_OK || response.empty()) {
+			std::cout << "placing order failed due to connection(curl) failure" << std::endl;
+			return;
+		}
+
+		JsonResponse json_response;
+		try {
+			json_response.init(response);
+		}
+		catch (std::exception &e) {
+			std::cout << "response parser failure" << std::endl;
+			return;
+		}
+
+		std::cout << std::endl;
+		std::map<std::string, std::string>::iterator it = json_response.fields.begin();
+		for (; it != json_response.fields.end(); ++it)
+			std::cout << "[" << WHT << it->first << RST << "]-->[" << it->second << "]" << std::endl;
+		std::cout << std::endl;
+
+		if (json_response.fields.find("error") != json_response.fields.end()) {
+			std::cout << "cancel endpoint responded with error: " << RED << json_response.fields["error"] << RST << std::endl;
+			return;
+		}
+
+		if (json_response.fields.find("result") == json_response.fields.end()) {
+			std::cout << "cancel endpoint response doesn't have enough fields" << std::endl;
+			return;
+		}
+		std::cout << GRN << "Order canceled successfully" << RST << std::endl;
+		this->orders.erase(order_id);
+	}
+	else std::cout << "canceling order failed due to connection(curl) failure" << std::endl;
 }
-void	APIClient::modify_order( void ) {
+void	APIClient::modify_order(std::string &order_id, int amount, double price) {
+	/* checking if order is present */
+	if (this->orders.find(order_id) == this->orders.end()) {
+		std::cout << "Order is not in OrderBook" << std::endl;
+		return;
+	}
+	/* updating token if expired */
 	if (!this->refresh_token()) {
 		std::cout << "modifying order failed due to an expired access token" << std::endl;
 		return;
+	}
+	CURL *curl = curl_easy_init();
+	if (curl) {
+		struct curl_slist *headers = nullptr;
+		std::string response;
+		std::string url = this->endpoints["url"] + "/api/v2" + this->endpoints["edit"] + "?"
+			+ "order_id=" + order_id + "&amount=" + std::to_string(amount) 
+			+ "&price=" + std::to_string(price);
+		std::cout << std::endl << BLU << "requestURL: " << url << RST << std::endl;
+
+		headers = curl_slist_append(headers, "Content-Type: application/json");
+		headers = curl_slist_append(headers, ("Authorization: Bearer " + this->access_token).c_str());
+
+		curl_easy_setopt(curl, CURLOPT_URL, url.c_str());
+		curl_easy_setopt(curl, CURLOPT_HTTPHEADER, headers);
+		curl_easy_setopt(curl, CURLOPT_WRITEFUNCTION, write_call_back);
+		curl_easy_setopt(curl, CURLOPT_WRITEDATA, &response);
+
+		CURLcode res = curl_easy_perform(curl);
+		curl_easy_cleanup(curl);
+
+		if (res != CURLE_OK || response.empty()) {
+			std::cout << "editing order failed due to connection(curl) failure" << std::endl;
+			return;
+		}
+
+		JsonResponse json_response;
+		try {
+			json_response.init(response);
+		}
+		catch (std::exception &e) {
+			std::cout << "response parser failure" << std::endl;
+			return;
+		}
+
+		std::cout << std::endl;
+		std::map<std::string, std::string>::iterator it = json_response.fields.begin();
+		for (; it != json_response.fields.end(); ++it)
+			std::cout << "[" << WHT << it->first << RST << "]-->[" << it->second << "]" << std::endl;
+		std::cout << std::endl;
+
+		if (json_response.fields.find("error") != json_response.fields.end()) {
+			std::cout << "edit endpoint responded with error: " << RED << json_response.fields["error"] << RST << std::endl;
+			return;
+		}
+
+		if (json_response.fields.find("result") == json_response.fields.end()) {
+			std::cout << "cancel endpoint response doesn't have enough fields" << std::endl;
+			return;
+		}
+		std::cout << GRN << "Order edited successfully" << RST << std::endl;
+		this->orders.erase(order_id);
+		this->orders[order_id] = json_response.fields;
+		
 	}
 }
 

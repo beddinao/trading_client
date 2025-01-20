@@ -46,11 +46,11 @@ class	APIClient {
 		void setup_endpoints( std::map<std::string, std::string>& );
 
 		/* trade functions */
-		void place_order( std::string&, std::string&, int, double );
-		void cancel_order( void );
-		void modify_order( void );
-		void get_order_book( void );
-		void get_position( void );
+		void place_order( std::string&, std::string&, std::string&, int, double );
+		void modify_order( std::string&, int, double );
+		void cancel_order( std::string& );
+		void get_order_book(  );
+		void get_position(  );
 
 		/* helper functions */
 		void snap_time();
