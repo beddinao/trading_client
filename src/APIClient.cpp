@@ -66,7 +66,10 @@ bool	APIClient::send_request(bool private_endpoint, const char *url, nlohmann::j
 		curl_easy_setopt(curl, CURLOPT_WRITEDATA, &response);
 		/* curl to action */
 		CURLcode res = curl_easy_perform(curl);
+		/* curl cleanup */
 		curl_easy_cleanup(curl);
+		curl_slist_free_all(headers);
+		/* basic curl result check */
 		if (res != CURLE_OK || response.empty()) {
 			std::cout << "connection(curl) failure" << std::endl;
 			return false;
