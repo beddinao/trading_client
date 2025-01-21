@@ -1,8 +1,6 @@
 #include <WebSocketServer.h>
 
-/* default constructor
- * .check if a custom websocket endpoint is set, if no set the deribit default
- * .initiate mutexes */
+/* setup websocket address */
 WebSocketServer::WebSocketServer() {
 	this->addr = get_env("WS_ADDR");
 	if (this->addr.empty())
@@ -11,9 +9,7 @@ WebSocketServer::WebSocketServer() {
 	this->active = false;
 }
 
-/*
- * .if the thread is running set the halt flag for it to exit
- * .clean mutexes */
+/* cleanup */
 WebSocketServer::~WebSocketServer() {
 	if (this->active) {
 		pthread_cancel(this->thread);
@@ -40,6 +36,7 @@ WebSocketServer	&WebSocketServer::operator = ( const WebSocketServer &S ) {
 */
 void	*WebSocketServer::routine(void *p) {
 	WebSocketServer *ws_server = (WebSocketServer*)p;
+	bool subscribe_confirmation = false;
 	try {
 		/* creating a resolver class instance to resolve address */
 		tcp::resolver resolver(ws_server->iox);
@@ -54,18 +51,9 @@ void	*WebSocketServer::routine(void *p) {
 		boost::beast::get_lowest_layer(ws).connect(results);
 		ws.next_layer().handshake(boost::asio::ssl::stream_base::client);
 		ws.handshake(ws_server->addr.c_str(), "/ws/api/v2");
-		/* subscription message formation by adding all the channels registered previously by code 6 */
-		std::string msg = R"({"jsonrpc": "2.0", "method": "public/subscribe","params": {"channels": [")";
-		for (std::vector<std::string>::iterator it = ws_server->channels.begin(); it != ws_server->channels.end(); ++it) {
-			msg += *it;
-			if ((it + 1) != ws_server->channels.end())
-				msg += ",";
-		}
-		msg += R"("]},"id": 1337})";
-		/* printing the formed subscrition msg, always usefull */
-		std::cout << "\nSubscription-request message:[" << CYN << msg << RST << "]" << std::endl;
 		/* sending the message */
-		ws.write(boost::asio::buffer(msg));
+		ws_server->ofile << ws_server->msg << std::endl;
+		ws.write(boost::asio::buffer(ws_server->msg));
 		/* special dynamic buffer provided by beast to store the response */
 		boost::beast::flat_buffer buffer;
 		while (true) {
@@ -75,22 +63,20 @@ void	*WebSocketServer::routine(void *p) {
 			/* parsing response json string using the nlohmann/json library */
 			nlohmann::json j = nlohmann::json::parse(boost::beast::buffers_to_string(buffer.data()));
 			/* basic check if endpoint responded with an error, and canceling streaming if so */
-			ws_server->ofile << j.dump(2) << std::endl;
 			if (j.contains("error")) {
 				ws_server->ofile << "websocket endpoint responded with error: " << RED << j["error"].dump(3) << RST << std::endl;
 				break;
 			}
 			/* a bit strict but some channels would hang on that */
-			else if (!j.contains("result")/* || j["result"].empty()*/) {
-				std::cout << "\ninvalid websocket response, " << RED << "quiting.." << RST << std::endl;
+			else if (!subscribe_confirmation && (!j.contains("result") || j["result"].empty())) {
+				ws_server->ofile << "\ninvalid subscription confirmation response, " << RED << "quiting.." << RST << std::endl;
 				break;
 			}
+			else subscribe_confirmation = true;
 			/* printing special stream data if usefull method */
-			else if(j["method"] == "subscription") {
+			if(j["method"] == "subscription") {
 				ws_server->ofile << j["params"]["channel"] << ": " << j["params"]["data"]["instrument_name"] << ":" << std::endl;
-				ws_server->ofile << "\t[" << j["params"]["data"]["change_id"] << "]-->" << j["params"]["data"]["type"] << ":" << std::endl;
-				ws_server->ofile << "\t\t" << "asks:" << j["params"]["data"]["asks"].dump(10) << std::endl;
-				ws_server->ofile << "\t\t" << "bids:" << j["params"]["data"]["bids"].dump(10) << std::endl;
+				ws_server->ofile << "\t[data]->" << j["params"]["data"].dump(10) << std::endl;
 			}
 			ws_server->ofile << "--------------------------------------------" << std::endl << std::endl;
 		}
@@ -135,6 +121,15 @@ void	WebSocketServer::start(std::string file_name) {
 		std::cout << RED << "error: " << RST <<  "could not open/create file for writing, check path permissions" << std::endl;
 		return;
 	}
+	/* subscription message formation by adding all the channels registered previously by code 6 */
+	this->msg = R"({"jsonrpc": "2.0", "method": "public/subscribe","params": {"channels": [")";
+	for (std::vector<std::string>::iterator it = this->channels.begin(); it != this->channels.end(); ++it) {
+		this->msg += *it;
+		if ((it + 1) != this->channels.end())
+			this->msg += R"(",")";
+	}
+	this->msg += R"("]},"id": 1337})";
+	std::cout << "\nSubscription-request message:[" << CYN << this->msg << RST << "]" << std::endl;
 	/* creating thread and assigning it it's routing */
 	pthread_create(&this->thread, NULL, WebSocketServer::routine, this);
 	pthread_detach(this->thread);
@@ -143,11 +138,10 @@ void	WebSocketServer::start(std::string file_name) {
 }
 
 /*
-	stop the websocket stream
-	.check if one is running
-	.set halt flag and wait for the thread to exit
-	.close the file stream
-*/
+   stop the websocket stream
+   .check if one is running
+   .close the file stream
+   */
 void	WebSocketServer::stop() {
 	/* check if there is an active stream first */
 	if (!this->active) {

@@ -35,6 +35,8 @@ class	WebSocketServer {
 	pthread_t thread;
 	/* output file for streaming */
 	std::fstream ofile;
+	/* subscription message */
+	std::string msg;
 	public:
 		WebSocketServer();
 		~WebSocketServer();

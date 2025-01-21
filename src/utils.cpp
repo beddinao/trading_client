@@ -6,12 +6,20 @@ bool	get_client_info(std::string &client_id, std::string &client_secret) {
 	if (client_id.empty()) {
 		std::cout << "CLIENT_ID "<< WHT << "is not set in env, using the" << RST << " DEFAULT_CLIENT_ID" << std::endl;
 		client_id = get_env("DEFAULT_CLIENT_ID");
+		if (client_id.empty()) {
+			std::cout << "DEFAULT_CLIENT_ID" << WHT << " is not set, " << RST << RED << "quiting.." << RST << std::endl;
+			return false;
+		}
 	}
 	/* retrieving client secret and failing back */
 	client_secret = get_env("CLIENT_SECRET");
 	if (client_secret.empty()) {
 		std::cout << "CLIENT_SECRET" << WHT << " is not set, using the " << RST << "DEFAULT_CLIENT_SECRET" << std::endl;
 		client_secret = get_env("DEFAULT_CLIENT_SECRET");
+		if (client_secret.empty()) {
+			std::cout << "DEFAULT_CLIENT_SECRET" << WHT << " is not set, " << RST << RED << "quiting.." << RST << std::endl;
+			return false;
+		}
 	}
 	if (client_id.empty() || client_secret.empty()) {
 		std::cout << RED << "error: " << RST << "failed to retrieve deribit account info" << std::endl;
