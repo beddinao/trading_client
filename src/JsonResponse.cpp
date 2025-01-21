@@ -50,7 +50,7 @@ void	JsonResponse::init( std::string &input ) {
 	std::string name, val;
 	size_t input_pos;
 
-	if (!this->fields.empty())
+	if (this->fields.empty())
 		this->fields.clear();
 
 	trim_str(input, " \"[]{}");

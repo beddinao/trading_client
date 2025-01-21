@@ -8,6 +8,8 @@
 #include <boost/beast/ssl.hpp>
 #include <JsonResponse.h>
 #include <json.hpp>
+#include <pthread.h>
+#include <fstream>
 
 namespace websocket = boost::beast::websocket;
 using tcp = boost::asio::ip::tcp;
@@ -27,16 +29,30 @@ class	WebSocketServer {
 	/* websocket api address:port */
 	std::string addr;
 	std::string port;
+	/*
+		thread worker implemented using c library functions
+		.i don't have enough time left to figure out
+		how to use the c++ ones
+	*/
+	bool active;
+	bool halt;
+	pthread_t thread;
+	pthread_mutex_t channels_mutex;
+	pthread_mutex_t halt_mutex;
+	/* output file for streaming */
+	std::fstream ofile;
 	public:
 		WebSocketServer();
 		~WebSocketServer();
 		WebSocketServer( const WebSocketServer& );
 		WebSocketServer &operator = ( const WebSocketServer& );
 		/* main methods */
-		bool start();
-		void init();
+		void start(std::string);
+		void stop();
 		/* channels that are subscriped to */
 		std::vector<std::string>	channels;
+		/* thread routine */
+		static void *routine(void*);
 };
 
 std::string	get_env( const char* );

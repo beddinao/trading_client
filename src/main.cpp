@@ -138,11 +138,32 @@ void	collect_subscription_params(WebSocketServer &ws_server) {
 
 	std::vector<std::string>::iterator it;
 	if (action == "add")
-		ws_server.channels.append_back(channel);
-	else if (action == "remove" && (it = ws_server.channels.find(channel)) != ws_server.channels.end())
-		ws_server.channels.erase(it);
+		ws_server.channels.push_back(channel);
+	else if (action == "remove") {
+		std::vector<std::string>::iterator it = ws_server.channels.begin();
+		while (it != ws_server.channels.end()) {
+			it++;
+			if (channel == *it) {
+				ws_server.channels.erase(it);
+				break;
+			}
+		}
+	}
 }
 
+void	collect_streaming_params(WebSocketServer &ws_server) {
+	std::string file_name;
+
+	try {
+		file_name = read_stdin_str("stream output file path: ");
+	}
+	catch (std::exception &e) {
+		std::cout << "invalid params" << std::endl;
+		return;
+	}
+
+	ws_server.start(file_name);
+}
 
 int	main() {
 	APIClient		api_client;
@@ -166,9 +187,6 @@ int	main() {
 	/* first time getting current time from last auth */
 	api_client.snap_time();
 
-	/* setup webSocket address and port */
-	ws_server.init();
-
 	//"book.BTC-PERPETUAL.100ms" 
 	while (true) {
 		show_menu();
@@ -187,7 +205,7 @@ int	main() {
 				case 4: collect_book_params(api_client); continue;
 				case 5: collect_position_params(api_client); continue;
 				case 6: collect_subscription_params(ws_server); continue;
-				case 7: ws_server.start(); continue;
+				case 7: collect_streaming_params(ws_server); continue;
 				case 8: ws_server.stop(); continue;
 				case 0:
 					std::cout << "Exiting.." << std::endl;

@@ -41,7 +41,7 @@ static	size_t write_call_back(void *content, size_t size, size_t nmemb, std::str
 	return total_size;
 }
 
-bool	APIClient::send_request(bool private_endpoint, const char *url, JsonResponse *json_response) {
+bool	APIClient::send_request(bool private_endpoint, const char *url, nlohmann::json &json_response) {
 	/* updating access_token if expired */
 	if (private_endpoint && !this->refresh_token()) {
 		std::cout << "refreshing access_token after expiration failed" << std::endl;
@@ -72,22 +72,18 @@ bool	APIClient::send_request(bool private_endpoint, const char *url, JsonRespons
 		/* for string manipulation safety */
 		try {
 			/* converting json string response to an actual json */
-			json_response->init(response);
+			json_response = nlohmann::json::parse(response);
 		}
 		catch (std::exception &e) {
 			std::cout << "json parser failure" << std::endl;
 			return false;
 		}
 		//
-		std::cout << std::endl;
-		std::map<std::string, std::string>::iterator it = json_response->fields.begin();
-		for (; it != json_response->fields.end(); ++it)
-			std::cout << "[" << WHT << it->first << RST << "]-->[" << it->second << "]" << std::endl;
-		std::cout << std::endl;
+		std::cout << json_response.dump(5) << std::endl;
 		//
 		/* response global error test */
-		if (json_response->fields.find("error") != json_response->fields.end()) {
-			std::cout << "got the response error: " << json_response->fields["error"] << std::endl;
+		if (json_response.contains("error")) {
+			std::cout << "got the response error: " << json_response["error"] << std::endl;
 			return false;
 		}
 		return true;
@@ -96,24 +92,24 @@ bool	APIClient::send_request(bool private_endpoint, const char *url, JsonRespons
 }
 
 bool	APIClient::authenticate( ) {
-	JsonResponse json_response;
+	nlohmann::json json_response;
 	bool status = this->send_request(false,
 			(this->endpoints["url"] + "/api/v2" + this->endpoints["auth"] + "?"
 				+ "client_id=" + this->client_id + "&client_secret=" + this->client_secret
 				+ "&grant_type=client_credentials").c_str(),
-			&json_response);
+			json_response);
 	if (!status)
 		return status;
 	/* basic access token retrieval tests */
-	if (json_response.fields.find("access_token") == json_response.fields.end()
-			|| json_response.fields["access_token"].empty()) {
+	if (json_response["result"]["access_token"] == NULL || json_response["result"]["access_token"].empty()) {
 		std::cout << "auth endpoint response doesn't have an access token" << std::endl;
 		return false;
 	}
 
 	/* access token just landed */
-	this->access_token = json_response.fields["access_token"];
-	this->access_token_expire = std::atoi(json_response.fields["expires_in"].c_str());
+	this->access_token_expire = json_response["result"]["expires_in"];
+	this->access_token = json_response["result"]["access_token"];
+	//this->access_token_expire = std::atoi(expire.c_str());
 	return true;
 }
 
@@ -141,20 +137,20 @@ bool	APIClient::refresh_token( ) {
 }
 
 void	APIClient::place_order(std::string &action, std::string &instrument, std::string &type, int amount, double price) {
-	JsonResponse json_response;
+	nlohmann::json json_response;
 	bool status = this->send_request(true,
 			(this->endpoints["url"] + "/api/v2" + this->endpoints[action] + "?"
 				+ "amount=" + std::to_string(amount) + "&instrument_name=" + instrument
 				+ "&price=" + std::to_string(price) + "&type=" + type).c_str(),
-			&json_response);
+			json_response);
 	if (!status) {
 		std::cout << "placing order failed" << std::endl;
 		return;
 	}
 
-	if (json_response.fields.find("order") == json_response.fields.end()
-			|| json_response.fields.find("order_id") == json_response.fields.end()
-			|| json_response.fields["order_id"].empty()) {
+	if (json_response["result"]["order"] == NULL
+			|| !json_response["result"]["order"]["order_id"]
+			|| json_response["result"]["order"]["order_id"].empty()) {
 		std::cout << "buy endpoint resopnse doesn't have the order fields" << std::endl;
 		return;
 	}
@@ -163,17 +159,17 @@ void	APIClient::place_order(std::string &action, std::string &instrument, std::s
 }
 
 void	APIClient::cancel_order( std::string &order_id ) {
-	JsonResponse json_response;
+	nlohmann::json json_response;
 	bool status = this->send_request(true,
 			(this->endpoints["url"] + "/api/v2" + this->endpoints["cancel"] + "?"
 				+ "order_id" + order_id).c_str(),
-			&json_response);
+			json_response);
 
 	if (!status) {
 		std::cout << "canceling order failed" << std::endl;
 		return;
 	}
-	if (json_response.fields.find("result") == json_response.fields.end()) {
+	if (!json_response.contains("result")) {
 		std::cout << "cancel endpoint response doesn't have enough fields" << std::endl;
 		return;
 	}
@@ -181,19 +177,19 @@ void	APIClient::cancel_order( std::string &order_id ) {
 	std::cout << GRN << "Order canceled successfully" << RST << std::endl;
 }
 void	APIClient::modify_order(std::string &order_id, int amount, double price) {
-	JsonResponse json_response;
+	nlohmann::json json_response;
 	bool status = this->send_request(true,
 			(this->endpoints["url"] + "/api/v2" + this->endpoints["edit"] + "?"
 				+ "order_id=" + order_id + "&amount=" + std::to_string(amount) 
 				+ "&price=" + std::to_string(price)).c_str(),
-			&json_response);
+			json_response);
 
 	if (!status) {
 		std::cout << "editing order failed" << std::endl;
 		return;
 	}
 
-	if (json_response.fields.find("result") == json_response.fields.end()) {
+	if (!json_response.contains("result")) {
 		std::cout << "cancel endpoint response doesn't have enough fields" << std::endl;
 		return;
 	}
@@ -201,18 +197,18 @@ void	APIClient::modify_order(std::string &order_id, int amount, double price) {
 }
 
 void	APIClient::get_order_book(std::string &instrument) {
-	JsonResponse json_response;
+	nlohmann::json json_response;
 	bool status = this->send_request(false,
 			(this->endpoints["url"] + "/api/v2" + this->endpoints["order_book"] + "?"
 			 "instrument_name=" + instrument).c_str(),
-			&json_response);
+			json_response);
 	if (!status) {
 		std::cout << "getting order book failed" << std::endl;
 		return;
 	}
 
-	if (json_response.fields.find("result") == json_response.fields.end()
-		|| json_response.fields["result"].empty()) {
+	if (!json_response.contains("result")
+		|| json_response["result"].empty()) {
 		std::cout << this->endpoints["order_book"]
 			<< " endpoint response doesn't have enough fields" << std::endl;
 		return;
@@ -221,20 +217,20 @@ void	APIClient::get_order_book(std::string &instrument) {
 }
 
 void	APIClient::get_position(std::string &currency, std::string &kind) {
-	JsonResponse json_response;
+	nlohmann::json json_response;
 	bool status = this->send_request(true,
 			(this->endpoints["url"] + "/api/v2" + this->endpoints["position"] + "?"
 			 + "currency=" + currency + "&kind=" + kind).c_str(),
-			&json_response);
+			json_response);
 
 	if (!status) {
 		std::cout << "getting position failed" << std::endl;
 		return;
 	}
 	
-	if (json_response.fields.find("result") == json_response.fields.end()
-		|| json_response.fields.find("size") == json_response.fields.end()
-		|| json_response.fields["size"].empty()) {
+	if (!json_response.contains("result")
+		|| json_response["result"]["size"] == NULL
+		|| json_response["result"]["size"].empty()) {
 		std::cout << "position endpoint reponse doesn't have enough fields" << std::endl;
 		return;
 	}

@@ -5,6 +5,7 @@
 #include	<JsonResponse.h>
 #include	<string>
 #include	<map>
+#include	<json.hpp>
 
 # define RST     "\x1B[0m"
 # define RED     "\x1B[31m"
@@ -48,7 +49,7 @@ class	APIClient {
 		void get_order_book( std::string& );
 
 		/* helper functions */
-		bool send_request(bool, const char*, JsonResponse* );
+		bool send_request(bool, const char*, nlohmann::json& );
 		std::map<std::string, std::string> get_endpoints();
 		void snap_time();
 };

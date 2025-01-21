@@ -80,7 +80,9 @@ void	show_menu() {
 	std::cout << "3. Modify Order" << std::endl;
 	std::cout << "4. View Orderbook" << std::endl;
 	std::cout << "5. View Open Positions" << std::endl;
-	std::cout << "6. Start WebSocket Market Data" << std::endl;
+	std::cout << "6. Add channels to stream" << std::endl;
+	std::cout << "7. Start WebSocket streaming" << std::endl;
+	std::cout << "8. Stop WebSocket streaming" << std::endl;
 	std::cout << "0. Exit" << std::endl << std::endl;
 }
 
