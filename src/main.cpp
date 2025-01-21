@@ -188,15 +188,17 @@ int	main() {
 
 	/* retrieving info required for data transfer */
 	if (!initiate_trader(api_client)) {
-		std::cout << "initiation failed" << std::endl;
+		std::cout << RED << "initiation failed" << RST << std::endl;
 		return 1;
 	}
+	std::cout << GRN << "--> initiation success" << RST << std::endl;
 
 	/* using those data to identify user */
 	if (!api_client.authenticate()) {
-		std::cout << "authentication failed" << std::endl;
+		std::cout << RED << "authentication failed" << RST << std::endl;
 		return 1;
 	}
+	std::cout << GRN << "--> authentication success" << RST << std::endl;
 
 	/* first time getting current time from last auth */
 	api_client.snap_time();

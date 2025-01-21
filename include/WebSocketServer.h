@@ -32,10 +32,7 @@ class	WebSocketServer {
 		how to use the c++ ones
 	*/
 	bool active;
-	bool halt;
 	pthread_t thread;
-	pthread_mutex_t channels_mutex;
-	pthread_mutex_t halt_mutex;
 	/* output file for streaming */
 	std::fstream ofile;
 	public:

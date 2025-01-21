@@ -8,8 +8,7 @@ WebSocketServer::WebSocketServer() {
 	if (this->addr.empty())
 		this->addr = "test.deribit.com";
 	this->port = "443";
-	pthread_mutex_init(&this->channels_mutex, NULL);
-	pthread_mutex_init(&this->halt_mutex, NULL);
+	this->active = false;
 }
 
 /*
@@ -17,14 +16,9 @@ WebSocketServer::WebSocketServer() {
  * .clean mutexes */
 WebSocketServer::~WebSocketServer() {
 	if (this->active) {
-		pthread_mutex_lock(&this->halt_mutex);
-		this->halt = true;
-		pthread_mutex_unlock(&this->halt_mutex);
+		pthread_cancel(this->thread);
 		pthread_join(this->thread, NULL);
-		pthread_detach(this->thread);
 	}
-	pthread_mutex_destroy(&this->channels_mutex);
-	pthread_mutex_destroy(&this->halt_mutex);
 }
 
 WebSocketServer::WebSocketServer( const WebSocketServer &S ) {
@@ -75,19 +69,8 @@ void	*WebSocketServer::routine(void *p) {
 		/* special dynamic buffer provided by beast to store the response */
 		boost::beast::flat_buffer buffer;
 		while (true) {
-			/*
-				checking the halt flag if set by the main thread
-				if so no need to clean resources as the main thread
-				would clean them
-			 */
-			pthread_mutex_lock(&ws_server->halt_mutex);
-			if (ws_server->halt) {
-				pthread_mutex_unlock(&ws_server->halt_mutex);
-				ws.close(websocket::close_code::normal);
-				return NULL;
-			}
-			pthread_mutex_unlock(&ws_server->halt_mutex);
 			/* reading response from socket */
+			buffer.clear();
 			ws.read(buffer);
 			/* parsing response json string using the nlohmann/json library */
 			nlohmann::json j = nlohmann::json::parse(boost::beast::buffers_to_string(buffer.data()));
@@ -97,10 +80,9 @@ void	*WebSocketServer::routine(void *p) {
 				ws_server->ofile << "websocket endpoint responded with error: " << RED << j["error"].dump(3) << RST << std::endl;
 				break;
 			}
-			/* a bit strict but some channels would hang on that 
-			 * blocking the thread from checking the halt flag thus making it immortal*/
-			else if (!j.contains("result") || j["result"].empty()) {
-				ws_server->ofile << "invalid websocket response, " << RED << "quiting.." << RST << std::endl;
+			/* a bit strict but some channels would hang on that */
+			else if (!j.contains("result")/* || j["result"].empty()*/) {
+				std::cout << "\ninvalid websocket response, " << RED << "quiting.." << RST << std::endl;
 				break;
 			}
 			/* printing special stream data if usefull method */
@@ -111,8 +93,6 @@ void	*WebSocketServer::routine(void *p) {
 				ws_server->ofile << "\t\t" << "bids:" << j["params"]["data"]["bids"].dump(10) << std::endl;
 			}
 			ws_server->ofile << "--------------------------------------------" << std::endl << std::endl;
-			/* clearing buffer to be reused */
-			buffer.clear();
 		}
 		/* closing the websocket */
 		ws.close(websocket::close_code::normal);
@@ -123,8 +103,7 @@ void	*WebSocketServer::routine(void *p) {
 	if (ws_server->ofile.is_open())
 		ws_server->ofile.close();
 	ws_server->active = false;
-	ws_server->halt = false;
-	return NULL;
+	pthread_exit(NULL);
 }
 
 /*
@@ -156,11 +135,10 @@ void	WebSocketServer::start(std::string file_name) {
 		std::cout << RED << "error: " << RST <<  "could not open/create file for writing, check path permissions" << std::endl;
 		return;
 	}
-	/* setting default flags */
-	this->active = true;
-	this->halt = false;
 	/* creating thread and assigning it it's routing */
 	pthread_create(&this->thread, NULL, WebSocketServer::routine, this);
+	pthread_detach(this->thread);
+	this->active = true;
 	std::cout << GRN << "--> WebSocket streaming launched in background > " << RST << file_name << std::endl;
 }
 
@@ -176,13 +154,9 @@ void	WebSocketServer::stop() {
 		std::cout << RED << "error: " << RST << "no streaming is active" << std::endl;
 		return;
 	}
-	this->active = false;
-	/* setting the halt flag for the thread to exit propebly */
-	pthread_mutex_lock(&this->halt_mutex);
-	this->halt = true;
-	pthread_mutex_unlock(&this->halt_mutex);
-	/* waiting for it to exit */
+	pthread_cancel(this->thread);
 	pthread_join(this->thread, NULL);
+	this->active = false;
 	/* closing file stream if not already close by thread */
 	if (this->ofile.is_open())
 		this->ofile.close();
