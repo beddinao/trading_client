@@ -47,14 +47,19 @@ void	collect_order_params(APIClient &api_client) {
 	int amount;
 
 	try {
-		action = read_stdin_str("action: ");
-		instrument = read_stdin_str("instrument name: ");
-		type = read_stdin_str("type: ");
-		amount = read_stdin_int("amount: ");
-		price = read_stdin_int("price: ");
+		action = read_stdin_str("action[sell/buy]: ");
+		instrument = read_stdin_str("required, instrument name: ");
+		type = read_stdin_str("optional, type[\n\tlimit/stop_limit/take_limit/market/stop_market/\n\ttake_market/market_limit/trailing_stop]: ");
+		amount = read_stdin_int("required, amount: ");
+		price = read_stdin_int("optional, price: ");
 	}
 	catch (std::exception &e) {
 		std::cout << "invalid params" << std::endl;
+		return;
+	}
+
+	if (action != "sell" && action != "buy") {
+		std::cout << "invalid action"  << std::endl;
 		return;
 	}
 
@@ -65,7 +70,7 @@ void	collect_cancelation_params(APIClient &api_client) {
 	std::string order_id;
 
 	try {
-		order_id = read_stdin_str("order id: ");
+		order_id = read_stdin_str("required, order id: ");
 	}
 	catch (std::exception &e) {
 		std::cout << "invalid params" << std::endl;
@@ -81,9 +86,9 @@ void	collect_edit_params(APIClient &api_client) {
 	int amount;
 
 	try {
-		order_id = read_stdin_str("order id: ");
-		amount = read_stdin_int("amount: ");
-		price = read_stdin_int("price: ");
+		order_id = read_stdin_str("required, order id: ");
+		amount = read_stdin_int("optional, new amount: ");
+		price = read_stdin_int("optional, new price: ");
 	}
 	catch (std::exception &e) {
 		std::cout << "invalid params" << std::endl;
@@ -98,8 +103,8 @@ void	collect_position_params(APIClient &api_client) {
 	std::string kind;
 
 	try {
-		currency = read_stdin_str("currency: ");
-		kind = read_stdin_str("kind: ");
+		currency = read_stdin_str("optional, currency[BTC/ETH/USDC/USDT/EURR/any]: ");
+		kind = read_stdin_str("optional, kind[future/option/spot/future_combo/option_combo]: ");
 	}
 	catch (std::exception &e) {
 		std::cout << "invalid params" << std::endl;
@@ -113,7 +118,7 @@ void	collect_book_params(APIClient &api_client) {
 	std::string instrument;
 
 	try {
-		instrument = read_stdin_str("instrument: ");
+		instrument = read_stdin_str("required, instrument name: ");
 	}
 	catch (std::exception &e) {
 		std::cout << "invalid params" << std::endl;
@@ -128,8 +133,8 @@ void	collect_subscription_params(WebSocketServer &ws_server) {
 	std::string channel;
 
 	try {
-		channel = read_stdin_str("channel: ");
-		action = read_stdin_str("action: ");
+		channel = read_stdin_str("required, channel: ");
+		action = read_stdin_str("required, action[add/remove]: ");
 	}
 	catch (std::exception &e) {
 		std::cout << "invalid params" << std::endl;
@@ -137,31 +142,40 @@ void	collect_subscription_params(WebSocketServer &ws_server) {
 	}
 
 	std::vector<std::string>::iterator it;
-	if (action == "add")
+	if (action == "add") {
 		ws_server.channels.push_back(channel);
+		std::cout << GRN << "--> channel added to list successfully" << RST << std::endl;
+	}
 	else if (action == "remove") {
-		std::vector<std::string>::iterator it = ws_server.channels.begin();
-		while (it != ws_server.channels.end()) {
-			it++;
-			if (channel == *it) {
-				ws_server.channels.erase(it);
-				break;
+		try {
+			std::vector<std::string>::iterator it = ws_server.channels.begin();
+			for (; it != ws_server.channels.end(); ++it) {
+				if (channel == *it) {
+					ws_server.channels.erase(it);
+					std::cout << GRN << "--> channel removed from list successfully" << RST << std::endl;
+					return;
+				}
 			}
+			std::cout << RED << "error: " << RST << "channel is not in list" << std::endl;
+		}
+		catch (std::exception &e) {
+			std::cout << RED << "error: " << RST << "can't remove channel" << std::endl;
 		}
 	}
+	else std::cout << RED << "error: " << RST << "invalid action, ignoring.." << std::endl;
 }
 
 void	collect_streaming_params(WebSocketServer &ws_server) {
 	std::string file_name;
 
 	try {
-		file_name = read_stdin_str("stream output file path: ");
+		file_name = read_stdin_str("required, output file path: ");
 	}
 	catch (std::exception &e) {
 		std::cout << "invalid params" << std::endl;
 		return;
 	}
-
+	
 	ws_server.start(file_name);
 }
 
@@ -187,26 +201,28 @@ int	main() {
 	/* first time getting current time from last auth */
 	api_client.snap_time();
 
-	//"book.BTC-PERPETUAL.100ms" 
+	show_menu();
 	while (true) {
-		show_menu();
 		std::cout << "your choice > ";
 		std::getline(std::cin, cin_input);
 
 		if (!std::cin) break;
-		clear_terminal();
+
+		if (cin_input.empty())
+			continue;
 
 		try {
 			choice = std::stoi(cin_input);
 			switch (choice) {
-				case 1: collect_order_params(api_client); continue;
-				case 2: collect_cancelation_params(api_client); continue;
-				case 3: collect_edit_params(api_client); continue;
-				case 4: collect_book_params(api_client); continue;
-				case 5: collect_position_params(api_client); continue;
-				case 6: collect_subscription_params(ws_server); continue;
-				case 7: collect_streaming_params(ws_server); continue;
-				case 8: ws_server.stop(); continue;
+				case 1: collect_order_params(api_client); break;
+				case 2: collect_cancelation_params(api_client); break;
+				case 3: collect_edit_params(api_client); break;
+				case 4: collect_book_params(api_client); break;
+				case 5: collect_position_params(api_client); break;
+				case 6: collect_subscription_params(ws_server); break;
+				case 7: collect_streaming_params(ws_server); break;
+				case 8: ws_server.stop(); break;
+				case 9: show_menu(); break;
 				case 0:
 					std::cout << "Exiting.." << std::endl;
 					return (0);
@@ -214,7 +230,7 @@ int	main() {
 			}
 		}
 		catch (std::exception &e) {
-			std::cout << "Invalid Option\"" + cin_input + "\"" << std::endl;
+			std::cout << RED << "Invalid Option\"" << RST << cin_input << RED "\"" << RST << std::endl;
 			continue;
 		}
 	}

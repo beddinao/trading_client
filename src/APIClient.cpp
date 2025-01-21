@@ -47,7 +47,9 @@ bool	APIClient::send_request(bool private_endpoint, const char *url, nlohmann::j
 		std::cout << "refreshing access_token after expiration failed" << std::endl;
 		return false;
 	}
-	std::cout << std::endl << CYN << "requestURL:" << url << RST << std::endl;
+	/* printing url for clearence */
+	std::string Url(url);
+	std::cout << "Requesting URL:[" << CYN << Url.substr(0, Url.find("?")) << RST << "]" << std::endl;
 	std::string response;
 	CURL *curl = curl_easy_init();
 	if (curl) {
@@ -69,7 +71,6 @@ bool	APIClient::send_request(bool private_endpoint, const char *url, nlohmann::j
 			std::cout << "connection(curl) failure" << std::endl;
 			return false;
 		}
-		/* for string manipulation safety */
 		try {
 			/* converting json string response to an actual json */
 			json_response = nlohmann::json::parse(response);
@@ -78,12 +79,9 @@ bool	APIClient::send_request(bool private_endpoint, const char *url, nlohmann::j
 			std::cout << "json parser failure" << std::endl;
 			return false;
 		}
-		//
-		std::cout << json_response.dump(5) << std::endl;
-		//
 		/* response global error test */
 		if (json_response.contains("error")) {
-			std::cout << "got the response error: " << json_response["error"] << std::endl;
+			std::cout << "endpoint responded with error: " << RED << json_response["error"] << RST << std::endl;
 			return false;
 		}
 		return true;
@@ -106,10 +104,9 @@ bool	APIClient::authenticate( ) {
 		return false;
 	}
 
-	/* access token just landed */
+	/* access token just landed along it's expire time in seconds */
 	this->access_token_expire = json_response["result"]["expires_in"];
 	this->access_token = json_response["result"]["access_token"];
-	//this->access_token_expire = std::atoi(expire.c_str());
 	return true;
 }
 
@@ -138,43 +135,55 @@ bool	APIClient::refresh_token( ) {
 
 void	APIClient::place_order(std::string &action, std::string &instrument, std::string &type, int amount, double price) {
 	nlohmann::json json_response;
+	/* forming the query string from user input */
 	bool status = this->send_request(true,
 			(this->endpoints["url"] + "/api/v2" + this->endpoints[action] + "?"
 				+ "amount=" + std::to_string(amount) + "&instrument_name=" + instrument
 				+ "&price=" + std::to_string(price) + "&type=" + type).c_str(),
 			json_response);
 	if (!status) {
-		std::cout << "placing order failed" << std::endl;
+		std::cout << RED << "error: " << RST << "placing order failed" << std::endl;
 		return;
 	}
-
+	/*
+		basic response validation,
+		successfull responds from deribit api always have the result field
+	*/
 	if (json_response["result"]["order"] == NULL
-			|| !json_response["result"]["order"]["order_id"]
+			|| json_response["result"]["order"]["order_id"] == NULL
 			|| json_response["result"]["order"]["order_id"].empty()) {
-		std::cout << "buy endpoint resopnse doesn't have the order fields" << std::endl;
+		std::cout << RED "error: " << RST << "buy endpoint resopnse doesn't have the order fields" << std::endl;
 		return;
 	}
 
-	std::cout << GRN << "Order done successfully" << RST << std::endl;
+	std::cout << GRN << "--> order placed successfully:" << RST << std::endl;
+	std::cout << WHT << "order id == " << RST << "[" << json_response["result"]["order"]["order_id"] << "]" << std::endl;
+	std::cout << WHT << "direction == " << RST << "[" << json_response["result"]["order"]["direction"] << "]" << std::endl;
+	std::cout << WHT << "instrument == " << RST << "[" << json_response["result"]["order"]["instrument_name"] << "]" << std::endl;
+	std::cout << WHT << "amount == " << RST << "[" << json_response["result"]["order"]["amount"] << "]" << std::endl;
+	std::cout << WHT << "order state == " << RST << "[" << json_response["result"]["order"]["order_state"] << "]" << std::endl;
+	std::cout << WHT << "order type == " << RST << "[" << json_response["result"]["order"]["order_type"] << "]" <<  std::endl;
 }
 
 void	APIClient::cancel_order( std::string &order_id ) {
 	nlohmann::json json_response;
 	bool status = this->send_request(true,
 			(this->endpoints["url"] + "/api/v2" + this->endpoints["cancel"] + "?"
-				+ "order_id" + order_id).c_str(),
+				+ "order_id=" + order_id).c_str(),
 			json_response);
-
 	if (!status) {
-		std::cout << "canceling order failed" << std::endl;
+		std::cout << RED << "error: " << RST << "canceling order failed" << std::endl;
 		return;
 	}
 	if (!json_response.contains("result")) {
-		std::cout << "cancel endpoint response doesn't have enough fields" << std::endl;
+		std::cout << RED << "error: " << RST << "cancel endpoint response doesn't have enough fields" << std::endl;
 		return;
 	}
-
-	std::cout << GRN << "Order canceled successfully" << RST << std::endl;
+	
+	std::cout << GRN << "--> order canceled successfully:" << RST << std::endl;
+	std::cout << WHT << "order id == " << RST << "[" << json_response["result"]["order_id"] << "]" << std::endl;
+	std::cout << WHT << "order state == " << RST << "[" << json_response["result"]["order_state"] << "]" << std::endl;
+	std::cout << WHT << "order type == " << RST << "[" << json_response["result"]["order_type"] << "]" <<  std::endl;
 }
 void	APIClient::modify_order(std::string &order_id, int amount, double price) {
 	nlohmann::json json_response;
@@ -183,17 +192,23 @@ void	APIClient::modify_order(std::string &order_id, int amount, double price) {
 				+ "order_id=" + order_id + "&amount=" + std::to_string(amount) 
 				+ "&price=" + std::to_string(price)).c_str(),
 			json_response);
-
 	if (!status) {
-		std::cout << "editing order failed" << std::endl;
+		std::cout << RED << "error: " << RST << "editing order failed" << std::endl;
 		return;
 	}
 
 	if (!json_response.contains("result")) {
-		std::cout << "cancel endpoint response doesn't have enough fields" << std::endl;
+		std::cout << RED << "error: " << RST << "cancel endpoint response doesn't have enough fields" << std::endl;
 		return;
 	}
-	std::cout << GRN << "Order edited successfully" << RST << std::endl;
+
+	std::cout << GRN << "--> order edited successfully" << RST << std::endl;
+	std::cout << WHT << "order id == " << RST << "[" << json_response["result"]["order"]["order_id"] << "]" << std::endl;
+	std::cout << WHT << "direction == " << RST << "[" << json_response["result"]["order"]["direction"] << "]" << std::endl;
+	std::cout << WHT << "instrument == " << RST << "[" << json_response["result"]["order"]["instrument_name"] << "]" << std::endl;
+	std::cout << WHT << "amount == " << RST << "[" << json_response["result"]["order"]["amount"] << "]" << std::endl;
+	std::cout << WHT << "order state == " << RST << "[" << json_response["result"]["order"]["order_state"] << "]" << std::endl;
+	std::cout << WHT << "order type == " << RST << "[" << json_response["result"]["order"]["order_type"] << "]" <<  std::endl;
 }
 
 void	APIClient::get_order_book(std::string &instrument) {
@@ -203,17 +218,18 @@ void	APIClient::get_order_book(std::string &instrument) {
 			 "instrument_name=" + instrument).c_str(),
 			json_response);
 	if (!status) {
-		std::cout << "getting order book failed" << std::endl;
+		std::cout << RED << "error: " << RST << "getting order book failed" << std::endl;
 		return;
 	}
 
 	if (!json_response.contains("result")
 		|| json_response["result"].empty()) {
-		std::cout << this->endpoints["order_book"]
+		std::cout << RED << "error: " << RST << this->endpoints["order_book"]
 			<< " endpoint response doesn't have enough fields" << std::endl;
 		return;
 	}
-	std::cout << GRN << "order book retrived successfully" << RST << std::endl;
+	std::cout << GRN << "--> order book retrived successfully:" << RST << std::endl;
+	std::cout << json_response.dump(2) << std::endl;
 }
 
 void	APIClient::get_position(std::string &currency, std::string &kind) {
@@ -224,16 +240,15 @@ void	APIClient::get_position(std::string &currency, std::string &kind) {
 			json_response);
 
 	if (!status) {
-		std::cout << "getting position failed" << std::endl;
+		std::cout << RED << "error: " << RST << "getting position failed" << std::endl;
 		return;
 	}
 	
-	if (!json_response.contains("result")
-		|| json_response["result"]["size"] == NULL
-		|| json_response["result"]["size"].empty()) {
-		std::cout << "position endpoint reponse doesn't have enough fields" << std::endl;
+	if (!json_response.contains("result")) {
+		std::cout << RED << "error: " << RST << "position endpoint reponse doesn't have enough fields" << std::endl;
 		return;
 	}
-	std::cout << GRN << "position retrieved successfully" << RST << std::endl;
+	std::cout << GRN << "--> position retrieved successfully:" << RST << std::endl;
+	std::cout << json_response.dump(2) << std::endl;
 }
 

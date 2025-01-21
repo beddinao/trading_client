@@ -2,21 +2,7 @@
 
 #include	<curl/curl.h>
 #include	<sys/time.h>
-#include	<JsonResponse.h>
-#include	<string>
-#include	<map>
-#include	<json.hpp>
-
-# define RST     "\x1B[0m"
-# define RED     "\x1B[31m"
-# define GRN     "\x1B[32m"
-# define YEL     "\x1B[33m"
-# define BLU     "\x1B[34m"
-# define AG      "\x1B[35m"
-# define CYN     "\x1B[36m"
-# define WHT     "\x1B[37m"
-# define UND     "\033[4m"
-# define BGR     "\033[7m"
+#include	<utils.h>
 
 class	APIClient {
 	/* client info */

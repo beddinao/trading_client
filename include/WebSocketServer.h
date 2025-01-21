@@ -1,15 +1,12 @@
 #pragma once
-#include <string>
-#include <vector>
-#include <iostream>
+
 #include <boost/asio.hpp>
 #include <boost/beast.hpp>
 #include <boost/asio/ssl.hpp>
 #include <boost/beast/ssl.hpp>
-#include <JsonResponse.h>
-#include <json.hpp>
 #include <pthread.h>
 #include <fstream>
+#include <utils.h>
 
 namespace websocket = boost::beast::websocket;
 using tcp = boost::asio::ip::tcp;
@@ -54,6 +51,4 @@ class	WebSocketServer {
 		/* thread routine */
 		static void *routine(void*);
 };
-
-std::string	get_env( const char* );
 
