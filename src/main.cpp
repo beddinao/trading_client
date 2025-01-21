@@ -123,6 +123,27 @@ void	collect_book_params(APIClient &api_client) {
 	api_client.get_order_book(instrument);
 }
 
+void	collect_subscription_params(WebSocketServer &ws_server) {
+	std::string action;
+	std::string channel;
+
+	try {
+		channel = read_stdin_str("channel: ");
+		action = read_stdin_str("action: ");
+	}
+	catch (std::exception &e) {
+		std::cout << "invalid params" << std::endl;
+		return;
+	}
+
+	std::vector<std::string>::iterator it;
+	if (action == "add")
+		ws_server.channels.append_back(channel);
+	else if (action == "remove" && (it = ws_server.channels.find(channel)) != ws_server.channels.end())
+		ws_server.channels.erase(it);
+}
+
+
 int	main() {
 	APIClient		api_client;
 	WebSocketServer	ws_server;
@@ -145,6 +166,10 @@ int	main() {
 	/* first time getting current time from last auth */
 	api_client.snap_time();
 
+	/* setup webSocket address and port */
+	ws_server.init();
+
+	//"book.BTC-PERPETUAL.100ms" 
 	while (true) {
 		show_menu();
 		std::cout << "your choice > ";
@@ -161,7 +186,9 @@ int	main() {
 				case 3: collect_edit_params(api_client); continue;
 				case 4: collect_book_params(api_client); continue;
 				case 5: collect_position_params(api_client); continue;
-				case 6: ws_server.start(ws_server); continue;
+				case 6: collect_subscription_params(ws_server); continue;
+				case 7: ws_server.start(); continue;
+				case 8: ws_server.stop(); continue;
 				case 0:
 					std::cout << "Exiting.." << std::endl;
 					return (0);

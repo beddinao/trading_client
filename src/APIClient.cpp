@@ -24,6 +24,10 @@ void	APIClient::setup_endpoints( std::map<std::string, std::string> &endpoints )
 	this->endpoints = endpoints;
 }
 
+std::map<std::string, std::string> APIClient::get_endpoints() {
+	return this->endpoints;
+}
+
 /* taking a snapshot of current time */
 void	APIClient::snap_time() {
 	memset(&last_auth, 0, sizeof(struct timeval));
@@ -213,7 +217,7 @@ void	APIClient::get_order_book(std::string &instrument) {
 			<< " endpoint response doesn't have enough fields" << std::endl;
 		return;
 	}
-	std::cout << GRN"order book retrived successfully"RST << std::endl;
+	std::cout << GRN << "order book retrived successfully" << RST << std::endl;
 }
 
 void	APIClient::get_position(std::string &currency, std::string &kind) {

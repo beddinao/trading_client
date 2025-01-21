@@ -49,6 +49,7 @@ class	APIClient {
 
 		/* helper functions */
 		bool send_request(bool, const char*, JsonResponse* );
+		std::map<std::string, std::string> get_endpoints();
 		void snap_time();
 };
 
