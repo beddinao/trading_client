@@ -127,6 +127,7 @@ code .Command                     | parameters
 ---
 
 ## *example channels to subscribe to*
-
-- **orderbook Updates for ETH-PERPETUAL**: `book.ETH-PERPETUAL.10.100ms`
-- **orderbook updates for BTC-PERPETUAL**: `book.BTC-PERPETUAL.10.100ms`
+```
+ticker.BTC-PERPETUAL.100ms
+ticker.ETH-PERPETUAL.100ms
+```
