@@ -1,7 +1,7 @@
-# *`deribit_trader`*
+# *`trading_client`*
 
 ## *about*
-**Deribit Trader** is a high-performance order execution and management system for trading on the Deribit Testnet using C++. This project enables users to place, modify, and cancel orders, as well as subscribe to real-time market data through WebSocket.
+a high-performance order execution and management system for trading on the Deribit Testnet using C++. This project enables users to place, modify, and cancel orders, as well as subscribe to real-time market data through WebSocket.
 
 #### *core features*
 - **order management:**
