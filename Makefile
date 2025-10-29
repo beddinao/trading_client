@@ -1,5 +1,5 @@
 OS := $(shell uname)
-CXX = c++
+CXX = g++
 SRC = $(wildcard src/*.cpp)
 HR = $(wildcard include/*.h)
 OBJ = $(patsubst src/%.cpp, build/%.o, $(SRC))
@@ -18,14 +18,14 @@ else
 endif
 
 LIBS = -lcurl -lboost_system -lssl -lcrypto -L$(BOOST_LIB) -L$(OPENSSL_LIB)
-INCLUDES = -I include -I$(BOOST_INC) -I$(OPENSSL_INC)
+INCLUDES = -Iinclude -I$(BOOST_INC) -I$(OPENSSL_INC)
 
 NAME = trade
 
 all: $(NAME)
 
 $(NAME): $(OBJ)
-	$(CXX) $(LIBS) $(FLAGS) -o $(NAME) $(OBJ)
+	$(CXX) $(OBJ) $(LIBS) $(FLAGS) -o $(NAME)
 
 build/%.o: src/%.cpp $(HR) 
 	@mkdir -p $(dir $@)
